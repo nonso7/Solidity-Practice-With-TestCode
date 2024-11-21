@@ -34,10 +34,10 @@ contract RockPapperScissors{
         winningMoves[3] = 2;
     }
 
-    function onePlayer(uint _gameId) internal view {
+    function onePlayer(uint _gameId) external view {
         Game storage game = games[_gameId];
         if (msg.sender == game.players[0] || msg.sender == game.players[1]) {
-        revert shouldBeOnePlayer();
+        revert ('should only be called by one player');
     }
 }
 
