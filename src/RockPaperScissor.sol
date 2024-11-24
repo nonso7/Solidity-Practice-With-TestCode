@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.24; 
 
-contract RockPapperScissors{
+contract RockPaperScissors {
     enum State {
         CREATED,
         JOINED,
@@ -16,6 +16,7 @@ contract RockPapperScissors{
         address payable[] players;
         State state;
     }
+
     struct Move {
         bytes32 hash;
         uint value;
@@ -34,13 +35,12 @@ contract RockPapperScissors{
         winningMoves[3] = 2;
     }
 
-    function onePlayer(uint _gameId) external view {
+    function onePlayer(uint _gameId) public view {
         Game storage game = games[_gameId];
         if (msg.sender == game.players[0] || msg.sender == game.players[1]) {
-        revert ('should only be called by one player');
+            revert ('should only be called by one player');
+        }
     }
-}
-
 
     function createGame(address payable participant) external payable {
         require(msg.value > 0, "need some ether");
