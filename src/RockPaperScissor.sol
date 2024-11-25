@@ -70,6 +70,11 @@ contract RockPaperScissors {
     // }
 
     // First player creates the game
+    function getGameById( uint256 id) external view returns (uint256, uint256, address[2] memory, State) {
+        Game storage game = games[id];
+        return (game.id, game.minimumBet, game.players, game.state);
+    }
+
     function createGame(address  participant) public payable {
         require(msg.value > 0, "need some ether for minimumBet");
 
