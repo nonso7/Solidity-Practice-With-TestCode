@@ -7,6 +7,10 @@ import {RockPaperScissors} from "../src/RockPaperScissor.sol";
 contract RockPaperScissorsTest is Test {
     RockPaperScissors rockPaperScissors;
 
+    address payable player1 = payable(address(0x123));
+    address payable player2 = payable(address(0x456));
+    uint256 gameId;
+
     // Set up function
     function setUp() public {
         rockPaperScissors = new RockPaperScissors();
@@ -22,33 +26,66 @@ contract RockPaperScissorsTest is Test {
         assertEq(rockPaperScissors.winningMoves(2), 1, "Paper wraps rock");
         assertEq(rockPaperScissors.winningMoves(3), 2, "Scissors cuts paper");
     }
+    
+    function testBet_RevertsWithZeroEther() public {
+        vm.expectRevert("need some ether for minimumBet");
+        rockPaperScissors.createGame{value: 0}(address(123));
+    }
 
-function test_OnePlayer() public {
-    uint gameId = 0; // Assuming no games created yet
-    address payable[] memory players = new address payable[](2); // Correct array declaration
-    players[0] = payable(address(0x123)); // Assigning an address
-    players[1] = payable(address(0x456)); // Assigning another address
+    function testBet_PassWhenSomeEtherIsSent() public {
+        uint256 amount = 1 ether;
+        rockPaperScissors.createGame{value: amount}(address (234));
+    }
 
-    // Modify the game struct using a storage reference
-     rockPaperScissors.games(gameId).id = gameId;
-    rockPaperScissors.games(gameId).bet = 1 ether;
-    rockPaperScissors.games(gameId).players = players;
-    rockPaperScissors.games(gameId).state = RockPaperScissors.State.CREATED;
+    // function test_GameCreated() public {
+    //     // Call createGame to initialize a struct
+    //     uint amount = 1 ether;
+    //      rockPaperScissors.createGame{value: amount}(address(234));
 
-    // Test the onePlayer function with player1
-    vm.prank(address(0x123)); // Impersonate player1
-    vm.expectRevert("should only be called by one player");
-    rockPaperScissors.onePlayer(gameId);
+    //     uint gameId = rockPaperScissors.gameId();
 
-    // Test the onePlayer function with player2
-    vm.prank(address(0x456)); // Impersonate player2
-    vm.expectRevert("should only be called by one player");
-    rockPaperScissors.onePlayer(gameId);
+    //     // Fetch the created game
+    //     // (uint id, uint bet, address[] memory players, RockPaperScissors.State state) = rockPaperScissors.games(0);
+    //     RockPaperScissors.Game memory game = rockPaperScissors.games(gameId - 1);
 
-    // Test the onePlayer function with a non-player
-    vm.prank(address(0x789)); // Impersonate a non-player
-    rockPaperScissors.onePlayer(gameId); // Should not revert
-}
+    //     uint id = game.id;
+    //     uint minimumBet = game.minimumBet;
+    //     address[2] memory players = game.players;
+    //     RockPaperScissors.State state = game.state;
 
+    //     // Assert that the struct's fields are correctly set
+    //     assertEq(id, 0);
+    //     assertEq(minimumBet, 1 ether);
+    //     assertEq(players[0], address(this));
+    //     assertEq(players[1], address(234));
+    //     assertEq(uint(state), uint(RockPaperScissors.State.CREATED));
+    // }
+
+    function testCreateGame() public {
+    // Prepare a participant address for the test
+        address participant = address(0x123);
+
+        // Create the game, passing in the participant address and some ether
+        rockPaperScissors.createGame{value: 1 ether}(participant);
+
+        // Now retrieve the game using the correct gameId (which should be 1 after the first creation)
+        uint localId = rockPaperScissors.gameId(); // This will get the current gameId, which will be 1 after the first creation. 
+        // Fetch the game with the last created gameId
+        RockPaperScissors.Game memory game = rockPaperScissors.games(localId); // Fetch the game with gameId 0
+        
+        // Access the fields of the game individually
+        uint id = game.id;
+        uint minimumBet = game.minimumBet;
+        address[2] memory players = game.players;
+        RockPaperScissors.State state = game.state;
+
+        // Now assert the struct's fields are correctly set
+        assertEq(id, 0); // The first game created should have id 0
+        assertEq(minimumBet, 1 ether); // The bet is 1 ether
+        assertEq(players[0], address(this)); // The creator should be the sender
+        assertEq(players[1], participant); // The participant should be the passed address
+        // Assert that the state is 'CREATED'. Enum value for 'CREATED' is 0.
+        assertEq(uint(state), uint(RockPaperScissors.State.CREATED)); // State should be CREATED (which is 0 in the enum)
+    }
 
 }
