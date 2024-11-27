@@ -33,7 +33,6 @@ contract RockPaperScissors {
     mapping(uint256 => mapping(address => Move)) public moves;
     mapping(uint256 => uint256) public winningMoves;
     uint256 public gameId;
-    
 
     error shouldBeOnePlayer();
 
@@ -70,12 +69,12 @@ contract RockPaperScissors {
     // }
 
     // First player creates the game
-    function getGameById( uint256 id) external view returns (uint256, uint256, address[2] memory, State) {
+    function getGameById(uint256 id) external view returns (uint256, uint256, address[2] memory, State) {
         Game storage game = games[id];
         return (game.id, game.minimumBet, game.players, game.state);
     }
 
-    function createGame(address  participant) public payable {
+    function createGame(address participant) public payable {
         require(msg.value > 0, "need some ether for minimumBet");
 
         address[2] memory players;
