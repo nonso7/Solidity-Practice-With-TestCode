@@ -205,6 +205,8 @@ contract RockPaperScissorsTest is Test {
         rockPaperScissors.joinGame{value: 1 ether}(gameId); // Player 2 joins the game
 
         // Step 5: Check the game state again after Player 2 joins
+        //this form of declaration(uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state) 
+        //can not be repeated here so that the error previous declaration wont be displayed
         (id, minimumBet, players, state) = rockPaperScissors.getGameById(gameId);
         assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED)); // Game state should now be JOINED
 
