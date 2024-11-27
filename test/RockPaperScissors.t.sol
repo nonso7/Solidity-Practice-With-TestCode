@@ -62,4 +62,47 @@ contract RockPaperScissorsTest is Test {
         assertEq(uint(state), uint(RockPaperScissors.State.CREATED));
     }
 
+    function test_GameIdIncreament() public {
+        uint gameIdBefore = rockPaperScissors.gameId();
+
+        address player1 = address(0x123);
+        address player2 = address(0x456);
+    // Prepare a participant address for the test
+
+        uint256 initialBalance = 2 ether;
+        vm.deal(player1, initialBalance);//funding player 1 with sufficient ether
+
+        uint256 amount = 1 ether;
+        vm.prank(player1);
+        // Create the game, passing in the participant address and some ether
+        rockPaperScissors.createGame{value: amount}(player2);
+
+        // Now retrieve the game using the correct gameId (which should be 1 after the first creation)
+        uint localId = rockPaperScissors.gameId() - 1; // This will get the current gameId, which will be 1 after the first creation. 
+        // Fetch the game with the last created gameId
+
+        (uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state) = rockPaperScissors.getGameById(localId);
+
+        uint gameIdAfter = rockPaperScissors.gameId();
+        
+         // Validate the retrieved game
+        assertEq(id, localId);
+        assertEq(minimumBet, 1 ether);
+        assertEq(players[0], player1);
+        assertEq(players[1], player2);
+        assertEq(uint(state), uint(RockPaperScissors.State.CREATED));
+        assertEq(gameIdAfter, gameIdBefore + 1);
+    }
+
+
+    function test_CheckIfAPlayer1HasJoinedGame() public {
+        address player1 = address(0x123);
+        // uint256 amount = 2 ether;
+    
+        vm.prank(player1);
+        vm.expectRevert("sender must be second player");
+    
+        rockPaperScissors.joinGame(gameId);
+    }
+
 }
