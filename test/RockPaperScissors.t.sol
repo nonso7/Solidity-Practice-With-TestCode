@@ -143,7 +143,7 @@ contract RockPaperScissorsTest is Test {
     function test_JoinGameWhenNotSecondPlayer() public {
         // Setup: Create the game first
         vm.deal(player1, 10 ether);
-        vm.deal(player2, 2 ether); // Player 2 has sufficient funds for the game
+        // vm.deal(player2, 2 ether);
 
         vm.prank(player1);
         rockPaperScissors.createGame{value: 1 ether}(player2);
@@ -153,10 +153,6 @@ contract RockPaperScissorsTest is Test {
         vm.prank(player1); // Use player1 to try joining
         vm.expectRevert("sender must be second player"); // Expect the revert message for Player 1
         rockPaperScissors.joinGame{value: 1 ether}(0); // Attempt to join the game
-
-        // Step 2: Now, make Player 2 join (they should be the second player)
-        vm.prank(player2); // Use player2 to join
-        rockPaperScissors.joinGame{value: 1 ether}(0); // Player 2 should successfully join the game
     }
 
     function test_JoinGameWhenSecondPlayer() public {
@@ -205,7 +201,7 @@ contract RockPaperScissorsTest is Test {
         rockPaperScissors.joinGame{value: 1 ether}(gameId); // Player 2 joins the game
 
         // Step 5: Check the game state again after Player 2 joins
-        //this form of declaration(uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state) 
+        //this form of declaration(uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state)
         //can not be repeated here so that the error previous declaration wont be displayed
         (id, minimumBet, players, state) = rockPaperScissors.getGameById(gameId);
         assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED)); // Game state should now be JOINED
@@ -216,28 +212,62 @@ contract RockPaperScissorsTest is Test {
         rockPaperScissors.joinGame{value: 1 ether}(gameId); // Should revert because game state is no longer 'CREATED'
     }
 
-    // function test_CheckIfAPlayer1HasJoinedGame() public {
-    //     //address player1 = address(0x123);
-    //     // uint256 amount = 2 ether;
+    function test_ToRefundIfExcessEther() public {
+        // Step 1: Fund player1 with enough Ether
+        uint256 initialBalancePlayer2 = 100 ether;
+        uint256 minBet = 10 ether;
+        vm.deal(player1, 20 ether); // Ensure player1 has enough funds to create the game
+        vm.deal(player2, initialBalancePlayer2); // Ensure player2 has enough funds to join the game
 
-    //     // Attempt to join the game as player1 (should fail)
-    //     vm.prank(player1);
-    //     vm.expectRevert("sender must be second player");
+        // Step 2: Player 1 creates a game
+        vm.prank(player1); // Simulate player1 making the transaction
+        rockPaperScissors.createGame{value: minBet}(player2); // Player1 creates a game, player2 is the second player
 
-    //     rockPaperScissors.joinGame(gameId);
-    // }
+        // Step 3: Check the game state and ensure it is CREATED initially
+        (uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state) =
+            rockPaperScissors.getGameById(gameId);
+        assertEq(uint256(state), uint256(RockPaperScissors.State.CREATED)); // Verify game state is 'CREATED'
 
-    // function test_InsufficientBalanceFromPlayer1() public {
-    //     vm.prank(player2);
-    //     vm.expectRevert("sender must be second player");
-    //     rockPaperScissors.joinGame{value: 0}(0);
+        // Step 4: Simulate Player 2 joining the game
+        uint256 overPaidPlayer2 = 90 ether;
+        vm.prank(player2); // Simulate player2 joining the game
+        rockPaperScissors.joinGame{value: overPaidPlayer2}(gameId); // Player 2 joins the game
 
-    //     // Player2 joins successfully
-    //     // vm.prank(player2);
-    //     // rockPaperScissors.joinGame{value: minimumBet}(0);
+        // Step 5: Check the game state again after Player 2 joins
+        //this form of declaration(uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state)
+        //can not be repeated here so that the error previous declaration wont be displayed
+        (id, minimumBet, players, state) = rockPaperScissors.getGameById(gameId);
+        assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED)); // Game state should now be JOINED
 
-    //     // Validate the state transition to JOINED
-    //     ( , , , RockPaperScissors.State state) = rockPaperScissors.getGameById(0);
-    //     assertEq(uint(state), uint(RockPaperScissors.State.JOINED));
-    // }
+        uint256 player2FinalBalance = player2.balance;
+        uint256 refundAmount = overPaidPlayer2 - minBet;
+        uint256 finalBalanceOfPlayer2 = initialBalancePlayer2 - minBet;
+        assertEq(player2FinalBalance, finalBalanceOfPlayer2, "Refund mismatch");
+
+        console.log(player2FinalBalance, refundAmount, finalBalanceOfPlayer2);
+    }
+
+    function test_IfPlayer1HashIsNotEqualsTo0() public {
+        uint256 moveId = 1;
+        uint256 salt;
+
+        vm.deal(player1, 10 ether);
+        vm.deal(player2, 10 ether);
+
+        vm.prank(player1);
+        rockPaperScissors.createGame{value: 10 ether}(player2);
+
+        vm.prank(player2);
+        rockPaperScissors.joinGame{value: 10 ether}(gameId);
+
+        (uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state) = rockPaperScissors.getGameById(gameId);
+        assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED));
+
+        vm.prank(player1);
+        rockPaperScissors.commitMove(gameId, moveId, salt);
+
+        (bytes32 hash1, uint256 value1) = rockPaperScissors.moves(gameId, player1);
+        assertEq(hash1, keccak256(abi.encodePacked(moveId, salt)), "Player 1's move hash does not match");
+        assertEq(value1, 0, "Player 1's move value should be 0 (not revealed)");
+    }
 }
