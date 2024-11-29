@@ -103,8 +103,8 @@ contract RockPaperScissors {
         game.state = State.JOINED;
     }
 
-    function makeMove(uint256 gameId, uint256 value, bytes32 hashedMove) external {
-        moves[gameId][msg.sender] = Move(hashedMove, value);
+    function makeMove(uint256 _gameId, uint256 value, bytes32 hashedMove) external {
+        moves[_gameId][msg.sender] = Move(hashedMove, value);
     }
 
     // the msg.sender is trying to make a move

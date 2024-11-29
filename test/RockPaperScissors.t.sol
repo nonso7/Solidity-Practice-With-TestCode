@@ -260,7 +260,7 @@ contract RockPaperScissorsTest is Test {
         vm.prank(player2);
         rockPaperScissors.joinGame{value: 10 ether}(gameId);
 
-        (uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state) =
+        (,,, RockPaperScissors.State state) =
             rockPaperScissors.getGameById(gameId);
         assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED));
 
@@ -286,15 +286,14 @@ contract RockPaperScissorsTest is Test {
         vm.prank(player2);
         rockPaperScissors.joinGame{value: 10 ether}(gameId);
 
-        (uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state) =
-            rockPaperScissors.getGameById(gameId);
+        (,,, RockPaperScissors.State state) = rockPaperScissors.getGameById(gameId);
         assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED));
 
         vm.prank(player1);
         rockPaperScissors.commitMove(gameId, moveId, salt);
 
         //It compares the value stored in the contract (hash1) with the hash the test computes locally (keccak256(abi.encodePacked(moveId, salt))).
-        (bytes32 hash1, uint256 value1) = rockPaperScissors.moves(gameId, player1);
+        (bytes32 hash1, ) = rockPaperScissors.moves(gameId, player1);
         assertEq(hash1, keccak256(abi.encodePacked(moveId, salt)));
 
         // Try to commit another move for Player 1 (this should revert)
@@ -302,4 +301,179 @@ contract RockPaperScissorsTest is Test {
         vm.expectRevert("You have already played"); // Expect revert when Player 1 tries to play again
         rockPaperScissors.commitMove(gameId, moveId, salt); // This should revert
     }
+
+    function test_IfPlayerHasntCommitedAmove() public {
+
+        vm.deal(player1, 10 ether);
+        vm.deal(player2, 10 ether);
+
+        vm.prank(player1);
+        rockPaperScissors.createGame{value: 10 ether}(player2);
+
+        vm.prank(player2);
+        rockPaperScissors.joinGame{value: 10 ether}(gameId);
+
+        (,,, RockPaperScissors.State state) = rockPaperScissors.getGameById(gameId);
+        assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED));
+
+        // Check that Player 1's move hash is initially 0 (before committing the move)
+        (bytes32 hash1,) = rockPaperScissors.moves(gameId, player1);
+        assertEq(hash1, bytes32(0), "Player 1 hasnt commited a move");
+
+        // vm.prank(player1);
+        // rockPaperScissors.commitMove(gameId, moveId, salt);
+    }
+
+    function test_MoveIdShouldBeBetween1to3() public {
+        uint256 moveId = 4;
+        uint256 salt;
+
+        vm.deal(player1, 10 ether);
+        vm.deal(player2, 10 ether);
+
+        vm.prank(player1);
+        rockPaperScissors.createGame{value: 10 ether}(player2);
+
+        vm.prank(player2);
+        rockPaperScissors.joinGame{value: 10 ether}(gameId);
+
+        (,,, RockPaperScissors.State state) = rockPaperScissors.getGameById(gameId);
+        assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED));
+
+        // Check that Player 1's move hash is initially 0 (before committing the move)
+        (,uint value) = rockPaperScissors.moves(gameId, player1);
+
+        vm.prank(player1);
+        vm.expectRevert("Move Id must be minimumBetween 1 and 3");
+        rockPaperScissors.commitMove(gameId, moveId, salt);
+    }
+
+    function test_PlayerMoveHashAndValue() public {
+        uint256 moveId = 1; // Set a move ID for this test
+        uint256 salt = 12345; // Set a deterministic salt for this test
+
+        // Fund both players
+        vm.deal(player1, 10 ether);
+        vm.deal(player2, 10 ether);
+
+        // Player 1 creates a game
+        vm.prank(player1);
+        rockPaperScissors.createGame{value: 10 ether}(player2);
+
+        // Player 2 joins the game
+        vm.prank(player2);
+        rockPaperScissors.joinGame{value: 10 ether}(gameId);
+
+        // Fetch the game details to ensure the state is JOINED
+        (, , , RockPaperScissors.State state) =
+            rockPaperScissors.getGameById(gameId);
+        assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED));
+
+        // Player 1 commits a move
+        vm.prank(player1);
+        rockPaperScissors.commitMove(gameId, moveId, salt);
+
+        // Fetch the move stored in the contract for Player 1
+        (bytes32 hash1, uint256 value1) = rockPaperScissors.moves(gameId, player1);
+
+        // The hash should match the expected hash (keccak256 of moveId and salt)
+        assertEq(hash1, keccak256(abi.encodePacked(moveId, salt)), "Player 1's move hash does not match");
+
+        // The value should be 0, as the move is committed but not revealed yet
+        assertEq(value1, 0, "Player 1's move value should be 0 (not revealed)");
+    }
+
+    function test_IfBothPlayersCommited() public {
+        uint256 salt = 12345;
+        uint256 moveId = 1;
+
+        vm.deal(player1, 10 ether);
+        vm.deal(player2, 10 ether);
+
+        vm.prank(player1);
+        rockPaperScissors.createGame{value: 10 ether}(player2);
+
+        uint256 gameIdParam = rockPaperScissors.gameId() - 1;
+
+        vm.prank(player2);
+        rockPaperScissors.joinGame{value: 10 ether}(gameIdParam);
+
+        (,,, RockPaperScissors.State state) = rockPaperScissors.getGameById(gameIdParam);
+        assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED));
+
+        vm.prank(player1);
+        rockPaperScissors.commitMove(gameIdParam, moveId, salt);
+
+        //It compares the value stored in the contract (hash1) with the hash the test computes locally (keccak256(abi.encodePacked(moveId, salt))).
+        (bytes32 hash1, ) = rockPaperScissors.moves(gameIdParam, player1);
+        assertEq(hash1, keccak256(abi.encodePacked(moveId, salt)));
+
+        // Try to commit another move for Player 1 (this should revert)
+        vm.prank(player1);
+        vm.expectRevert("You have already played");
+        rockPaperScissors.commitMove(gameIdParam, moveId, salt); // This should revert
+
+        // Player2 commits their move
+        vm.prank(player2);
+        rockPaperScissors.commitMove(gameIdParam, moveId, salt);
+
+        // Verify Player2's committed move
+        (bytes32 hash2, ) = rockPaperScissors.moves(gameIdParam, player2);
+        assertEq(hash2, keccak256(abi.encodePacked(moveId, salt)));
+
+        // Fetch the game state and verify the state is COMMITED
+        (,,, state) = rockPaperScissors.getGameById(gameIdParam);
+        assertEq(uint256(state), uint256(RockPaperScissors.State.COMMITED));
+    }
+
+    //////////////////////////////////////////
+
+    // function test_IfBothPlayersCommited() public {
+    //     uint256 salt = 12345;
+    //     uint256 moveId = 1;
+
+    //     // Fund players with Ether
+    //     vm.deal(player1, 10 ether);
+    //     vm.deal(player2, 10 ether);
+
+    //     // Player1 creates a game
+    //     vm.prank(player1);
+    //     rockPaperScissors.createGame{value: 10 ether}(player2);
+
+    //     // Get the actual gameId after creation (as the gameId is incremented)
+    //     uint256 gameIdParam = rockPaperScissors.gameId() - 1;
+
+    //     // Player2 joins the game
+    //     vm.prank(player2);
+    //     rockPaperScissors.joinGame{value: 10 ether}(gameIdParam);
+
+    //     // Fetch the game state and verify the state is JOINED
+    //     (,,, RockPaperScissors.State state) = rockPaperScissors.getGameById(gameIdParam);
+    //     assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED));
+
+    //     // Player1 commits their move
+    //     vm.prank(player1);
+    //     rockPaperScissors.commitMove(gameIdParam, moveId, salt);
+
+    //     // Verify Player1's committed move
+    //     (bytes32 hash1, uint256 value1) = rockPaperScissors.moves(gameIdParam, player1);
+    //     assertEq(hash1, keccak256(abi.encodePacked(moveId, salt)));
+
+    //     // Try to commit another move for Player1 (this should revert)
+    //     vm.expectRevert(); // Expect a revert
+    //     vm.prank(player1);
+    //     rockPaperScissors.commitMove(gameIdParam, moveId, salt);
+
+    //     // Player2 commits their move
+    //     vm.prank(player2);
+    //     rockPaperScissors.commitMove(gameIdParam, moveId, salt);
+
+    //     // Verify Player2's committed move
+    //     (bytes32 hash2, uint256 value2) = rockPaperScissors.moves(gameIdParam, player2);
+    //     assertEq(hash2, keccak256(abi.encodePacked(moveId, salt)));
+
+    //     // Fetch the game state and verify the state is COMMITED
+    //     (,,, state) = rockPaperScissors.getGameById(gameIdParam);
+    //     assertEq(uint256(state), uint256(RockPaperScissors.State.COMMITED));
+    // }
 }
