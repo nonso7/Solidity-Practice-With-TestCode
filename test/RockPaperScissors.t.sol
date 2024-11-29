@@ -247,7 +247,7 @@ contract RockPaperScissorsTest is Test {
         console.log(player2FinalBalance, refundAmount, finalBalanceOfPlayer2);
     }
 
-    function test_IfPlayer1HashIsNotEqualsTo0() public {
+    function test_Player1CommitMove() public {
         uint256 moveId = 1;
         uint256 salt;
 
@@ -260,14 +260,46 @@ contract RockPaperScissorsTest is Test {
         vm.prank(player2);
         rockPaperScissors.joinGame{value: 10 ether}(gameId);
 
-        (uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state) = rockPaperScissors.getGameById(gameId);
+        (uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state) =
+            rockPaperScissors.getGameById(gameId);
         assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED));
 
         vm.prank(player1);
         rockPaperScissors.commitMove(gameId, moveId, salt);
 
+        //It compares the value stored in the contract (hash1) with the hash the test computes locally (keccak256(abi.encodePacked(moveId, salt))).
         (bytes32 hash1, uint256 value1) = rockPaperScissors.moves(gameId, player1);
         assertEq(hash1, keccak256(abi.encodePacked(moveId, salt)), "Player 1's move hash does not match");
         assertEq(value1, 0, "Player 1's move value should be 0 (not revealed)");
+    }
+
+    function test_IfPlayer1CommitsAMoveAfterHisFirstMove() public {
+        uint256 moveId = 1;
+        uint256 salt;
+
+        vm.deal(player1, 10 ether);
+        vm.deal(player2, 10 ether);
+
+        vm.prank(player1);
+        rockPaperScissors.createGame{value: 10 ether}(player2);
+
+        vm.prank(player2);
+        rockPaperScissors.joinGame{value: 10 ether}(gameId);
+
+        (uint256 id, uint256 minimumBet, address[2] memory players, RockPaperScissors.State state) =
+            rockPaperScissors.getGameById(gameId);
+        assertEq(uint256(state), uint256(RockPaperScissors.State.JOINED));
+
+        vm.prank(player1);
+        rockPaperScissors.commitMove(gameId, moveId, salt);
+
+        //It compares the value stored in the contract (hash1) with the hash the test computes locally (keccak256(abi.encodePacked(moveId, salt))).
+        (bytes32 hash1, uint256 value1) = rockPaperScissors.moves(gameId, player1);
+        assertEq(hash1, keccak256(abi.encodePacked(moveId, salt)));
+
+        // Try to commit another move for Player 1 (this should revert)
+        vm.prank(player1);
+        vm.expectRevert("You have already played"); // Expect revert when Player 1 tries to play again
+        rockPaperScissors.commitMove(gameId, moveId, salt); // This should revert
     }
 }
